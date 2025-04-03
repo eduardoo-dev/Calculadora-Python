@@ -1,6 +1,142 @@
+import tkinter as tk
+from tkinter import messagebox
+import math
+from functools import partial
 
-# .v4p backup files
-*~.xml
+# Criar janela principal
+root = tk.Tk()
+root.title("PIM: Calculadora")  
+root.geometry("600x900")
+root.resizable(False, False)
+root.configure(bg="#001F3F")
 
-# Dynamic plugins .dll
-bin/
+# Criar título
+titulo_label = tk.Label(root, text="⚡ PIM: Calculadora ⚡", font=("Arial", 24, "bold"), fg="yellow", bg="#001F3F")
+titulo_label.pack(pady=20)
+
+# Função para abrir janelas separadas
+def abrir_janela(titulo, funcao_calculo, is_conjunto=False, exibir_venn=False):
+    def calcular():
+        try:
+            if is_conjunto:
+                conjunto1 = set(map(float, entry_conjunto1.get().split(",")))
+                conjunto2 = set(map(float, entry_conjunto2.get().split(",")))
+                resultado = funcao_calculo(conjunto1, conjunto2)
+                resultado_label.config(text=f"Resultado: {resultado}", fg="white")
+
+                if exibir_venn:
+                    desenhar_venn(conjunto1, conjunto2)
+            else:
+                valores = [float(entry.get()) for entry in entries]
+                resultado = funcao_calculo(*valores)
+                resultado_label.config(text=f"Resultado: {resultado}", fg="white")
+
+        except ValueError:
+            messagebox.showerror("Erro", "Digite valores numéricos separados por vírgula!")
+        except Exception as e:
+            messagebox.showerror("Erro", str(e))
+
+    janela = tk.Toplevel(root)
+    janela.title(titulo)
+    janela.configure(bg="#002147")
+    janela.geometry("400x500")
+
+    tk.Label(janela, text=titulo, font=("Arial", 16, "bold"), bg="#002147", fg="yellow").pack(pady=10)
+
+    if is_conjunto:
+        tk.Label(janela, text="Conjunto 1 (números separados por vírgula):", bg="#002147", fg="white").pack()
+        entry_conjunto1 = tk.Entry(janela, font=("Arial", 14), bg="white", fg="black", justify="center")
+        entry_conjunto1.pack(pady=5, padx=20)
+
+        tk.Label(janela, text="Conjunto 2 (números separados por vírgula):", bg="#002147", fg="white").pack()
+        entry_conjunto2 = tk.Entry(janela, font=("Arial", 14), bg="white", fg="black", justify="center")
+        entry_conjunto2.pack(pady=5, padx=20)
+    else:
+        entries = []
+        for i in range(funcao_calculo.__code__.co_argcount):
+            tk.Label(janela, text=f"Valor {i+1}:", bg="#002147", fg="white").pack()
+            entry = tk.Entry(janela, font=("Arial", 14), bg="white", fg="black", justify="center")
+            entry.pack(pady=5, padx=20)
+            entries.append(entry)
+
+    resultado_label = tk.Label(janela, text="", font=("Arial", 14, "bold"), bg="#002147", fg="white")
+    resultado_label.pack(pady=10)
+
+    botao_calcular = tk.Button(janela, text="Calcular", font=("Arial", 14, "bold"), bg="#FFD700", fg="black",
+                               command=calcular, relief="raised", borderwidth=3)
+    botao_calcular.pack(pady=10)
+
+    fechar_botao = tk.Button(janela, text="Fechar", font=("Arial", 14, "bold"), bg="#FFD700", fg="black",
+                             command=janela.destroy)
+    fechar_botao.pack(pady=10)
+
+# Funções Matemáticas para Conjuntos Numéricos
+def uniao(a, b):
+    return a | b  # União de conjuntos
+
+def intersecao(a, b):
+    return a & b  # Interseção de conjuntos
+
+def diferenca_a_b(a, b):
+    return a - b  # Diferença A - B
+
+def diferenca_b_a(a, b):
+    return b - a  # Diferença B - A
+
+# Função para desenhar o Diagrama de Venn no Tkinter Canvas
+def desenhar_venn(conjunto1, conjunto2):
+    venn_janela = tk.Toplevel(root)
+    venn_janela.title("Diagrama de Venn")
+    venn_janela.geometry("400x400")
+    venn_janela.configure(bg="#002147")
+
+    canvas = tk.Canvas(venn_janela, width=400, height=400, bg="white")
+    canvas.pack()
+
+    # Desenhar os conjuntos como círculos
+    canvas.create_oval(50, 100, 250, 300, outline="blue", width=2)  # Conjunto A
+    canvas.create_oval(150, 100, 350, 300, outline="red", width=2)  # Conjunto B
+
+    intersecao_valores = conjunto1 & conjunto2
+    uniao_valores = conjunto1 | conjunto2
+    diferenca_valores = conjunto1 - conjunto2
+
+    # Exibir interseção
+    canvas.create_text(200, 200, text=f"{intersecao_valores}", fill="black", font=("Arial", 12, "bold"))
+
+    # Exibir elementos do conjunto A (exclusivos)
+    canvas.create_text(120, 200, text=f"{diferenca_valores}", fill="blue", font=("Arial", 12, "bold"))
+
+    # Exibir elementos do conjunto B (exclusivos)
+    canvas.create_text(280, 200, text=f"{conjunto2 - conjunto1}", fill="red", font=("Arial", 12, "bold"))
+
+    # Exibir União no topo
+    canvas.create_text(200, 50, text=f"União: {uniao_valores}", fill="black", font=("Arial", 12, "bold"))
+
+# Criar botões estilizados
+botoes = {}
+funcoes = {
+    "⚡ União de Conjuntos": (uniao, True, True),
+    "⚡ Interseção de Conjuntos": (intersecao, True, True),
+    "⚡ Diferença A - B": (diferenca_a_b, True, False),
+    "⚡ Diferença B - A": (diferenca_b_a, True, False)
+}
+
+y_pos = 100
+for nome, (funcao, is_conjunto, exibir_venn) in funcoes.items():
+    botoes[nome] = tk.Button(root, text=nome, font=("Arial", 14, "bold"), bg="#FFD700", fg="black",
+                             command=partial(abrir_janela, nome, funcao, is_conjunto, exibir_venn), relief="raised", borderwidth=4)
+
+    def on_hover(e, btn=botoes[nome]): 
+        btn.config(bg="#FFCC00")
+    def on_leave(e, btn=botoes[nome]): 
+        btn.config(bg="#FFD700")
+
+    botoes[nome].place(x=170, y=y_pos, width=260, height=50)
+    botoes[nome].bind("<Enter>", on_hover)
+    botoes[nome].bind("<Leave>", on_leave)
+
+    y_pos += 70
+
+# Rodar a interface gráfica
+root.mainloop()
