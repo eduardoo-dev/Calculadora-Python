@@ -1,142 +1,271 @@
 import tkinter as tk
-from tkinter import messagebox
-import math
-from functools import partial
+from tkinter import messagebox
+import math
+from functools import partial
+import sympy as sp
+import matplotlib.pyplot as plt
+from matplotlib_venn import venn2, venn2_circles
 
-# Criar janela principal
-root = tk.Tk()
-root.title("PIM: Calculadora")  
-root.geometry("600x900")
-root.resizable(False, False)
-root.configure(bg="#001F3F")
+def abrir_janela(titulo, funcao_calculo):
+    def calcular():
+        try:
+            # Convert entries to float and handle different function argument counts
+            if funcao_calculo == resolver_expressao:
+                valores = [entry.get() for entry in entries]
+                resultado = funcao_calculo(*valores)
+            else:
+                valores = [float(entry.get()) for entry in entries]
+                resultado = funcao_calculo(*valores)
+            
+            resultado_label.config(text=f"Resultado: {resultado}", fg="white")
+        except ValueError:
+            messagebox.showerror("Erro", "Digite valores numéricos válidos!")
+        except Exception as e:
+            messagebox.showerror("Erro", str(e))
 
-# Criar título
-titulo_label = tk.Label(root, text="⚡ PIM: Calculadora ⚡", font=("Arial", 24, "bold"), fg="yellow", bg="#001F3F")
-titulo_label.pack(pady=20)
+    def gerar_campos():
+        try:
+            qtd = int(entry_qtd.get()) * 2 + 1
+            for widget in frame_campos.winfo_children():
+                widget.destroy()
+            nonlocal entries
+            entries = []
+            for i in range(qtd):
+                tk.Label(frame_campos, text=f"Valor {i+1}:", bg="#002147", fg="white").pack()
+                entry = tk.Entry(frame_campos, font=("Arial", 14), bg="white", fg="black", justify="center")
+                entry.pack(pady=2, padx=20)
+                entries.append(entry)
+        except ValueError:
+            messagebox.showerror("Erro", "Digite um número válido de variáveis!")
 
-# Função para abrir janelas separadas
-def abrir_janela(titulo, funcao_calculo, is_conjunto=False, exibir_venn=False):
-    def calcular():
-        try:
-            if is_conjunto:
-                conjunto1 = set(map(float, entry_conjunto1.get().split(",")))
-                conjunto2 = set(map(float, entry_conjunto2.get().split(",")))
-                resultado = funcao_calculo(conjunto1, conjunto2)
-                resultado_label.config(text=f"Resultado: {resultado}", fg="white")
+    janela = tk.Toplevel(root)
+    janela.title(titulo)
+    janela.configure(bg="#002147")
+    janela.geometry("400x500")
 
-                if exibir_venn:
-                    desenhar_venn(conjunto1, conjunto2)
-            else:
-                valores = [float(entry.get()) for entry in entries]
-                resultado = funcao_calculo(*valores)
-                resultado_label.config(text=f"Resultado: {resultado}", fg="white")
+    tk.Label(janela, text=titulo, font=("Arial", 16, "bold"), bg="#002147", fg="yellow").pack(pady=10)
 
-        except ValueError:
-            messagebox.showerror("Erro", "Digite valores numéricos separados por vírgula!")
-        except Exception as e:
-            messagebox.showerror("Erro", str(e))
+    entries = []
+    frame_campos = tk.Frame(janela, bg="#002147")
+    frame_campos.pack()
 
-    janela = tk.Toplevel(root)
-    janela.title(titulo)
-    janela.configure(bg="#002147")
-    janela.geometry("400x500")
+    if funcao_calculo == regra_de_tres_composta:
+        tk.Label(janela, text="Quantidade de Variáveis:", bg="#002147", fg="white").pack()
+        entry_qtd = tk.Entry(janela, font=("Arial", 14), bg="white", fg="black", justify="center")
+        entry_qtd.pack(pady=5)
+        tk.Button(janela, text="Gerar Campos", font=("Arial", 12, "bold"), bg="#FFD700", fg="black",
+                  command=gerar_campos).pack(pady=5)
+    else:
+        for i in range(funcao_calculo.__code__.co_argcount):
+            tk.Label(frame_campos, text=f"Valor {i+1}:", bg="#002147", fg="white").pack()
+            entry = tk.Entry(frame_campos, font=("Arial", 14), bg="white", fg="black", justify="center")
+            entry.pack(pady=2, padx=20)
+            entries.append(entry)
 
-    tk.Label(janela, text=titulo, font=("Arial", 16, "bold"), bg="#002147", fg="yellow").pack(pady=10)
+    resultado_label = tk.Label(janela, text="", font=("Arial", 14, "bold"), bg="#002147", fg="white")
+    resultado_label.pack(pady=10)
 
-    if is_conjunto:
-        tk.Label(janela, text="Conjunto 1 (números separados por vírgula):", bg="#002147", fg="white").pack()
-        entry_conjunto1 = tk.Entry(janela, font=("Arial", 14), bg="white", fg="black", justify="center")
-        entry_conjunto1.pack(pady=5, padx=20)
+    botao_calcular = tk.Button(janela, text="Calcular", font=("Arial", 14, "bold"), bg="#FFD700", fg="black",
+                               command=calcular, relief="raised", borderwidth=3)
+    botao_calcular.pack(pady=10)
 
-        tk.Label(janela, text="Conjunto 2 (números separados por vírgula):", bg="#002147", fg="white").pack()
-        entry_conjunto2 = tk.Entry(janela, font=("Arial", 14), bg="white", fg="black", justify="center")
-        entry_conjunto2.pack(pady=5, padx=20)
-    else:
-        entries = []
-        for i in range(funcao_calculo.__code__.co_argcount):
-            tk.Label(janela, text=f"Valor {i+1}:", bg="#002147", fg="white").pack()
-            entry = tk.Entry(janela, font=("Arial", 14), bg="white", fg="black", justify="center")
-            entry.pack(pady=5, padx=20)
-            entries.append(entry)
+    fechar_botao = tk.Button(janela, text="Fechar", font=("Arial", 14, "bold"), bg="#FFD700", fg="black",
+                             command=janela.destroy)
+    fechar_botao.pack(pady=10)
 
-    resultado_label = tk.Label(janela, text="", font=("Arial", 14, "bold"), bg="#002147", fg="white")
-    resultado_label.pack(pady=10)
+# Math Functions
+def somar(a, b): return a + b
+def subtrair(a, b): return a - b
+def multiplicar(a, b): return a * b
+def dividir(a, b):
+    if b == 0:
+        raise ValueError("Divisão por zero não é permitida")
+    return a / b
 
-    botao_calcular = tk.Button(janela, text="Calcular", font=("Arial", 14, "bold"), bg="#FFD700", fg="black",
-                               command=calcular, relief="raised", borderwidth=3)
-    botao_calcular.pack(pady=10)
+def potencia(a, b): return a ** b
+def raiz_quadrada(a): 
+    if a < 0:
+        raise ValueError("Raiz quadrada de número negativo não é permitida")
+    return math.sqrt(a)
 
-    fechar_botao = tk.Button(janela, text="Fechar", font=("Arial", 14, "bold"), bg="#FFD700", fg="black",
-                             command=janela.destroy)
-    fechar_botao.pack(pady=10)
+def bhaskara(a, b, c):
+    if a == 0:
+        raise ValueError("O valor de 'a' não pode ser zero")
+    delta = b**2 - 4*a*c
+    if delta < 0:
+        return "Sem raízes reais"
+    elif delta == 0:
+        return f"x = {-b / (2*a):.2f}"
+    else:
+        x1 = (-b + math.sqrt(delta)) / (2*a)
+        x2 = (-b - math.sqrt(delta)) / (2*a)
+        return f"x1 = {x1:.2f}, x2 = {x2:.2f}"
 
-# Funções Matemáticas para Conjuntos Numéricos
-def uniao(a, b):
-    return a | b  # União de conjuntos
+def sistema_linear(a1, b1, c1, a2, b2, c2):
+    determinante = a1 * b2 - a2 * b1
+    if determinante == 0:
+        return "O sistema não tem solução única"
+    x = (c1 * b2 - c2 * b1) / determinante
+    y = (a1 * c2 - a2 * c1) / determinante
+    return f"x = {x:.2f}, y = {y:.2f}"
 
-def intersecao(a, b):
-    return a & b  # Interseção de conjuntos
+def regra_de_tres(a, b, c):
+    if a == 0:
+        raise ValueError("O primeiro valor não pode ser zero")
+    resultado = (b * c) / a
+    return f"x = {resultado:.2f}"
 
-def diferenca_a_b(a, b):
-    return a - b  # Diferença A - B
+def regra_de_tres_composta(*valores):
+    if len(valores) % 2 == 0:
+        raise ValueError("Número de valores inválido (deve ser ímpar)")
+    produto = 1
+    for i in range(0, len(valores) - 1, 2):
+        if valores[i] == 0:
+            raise ValueError("Não pode haver divisão por zero")
+        produto *= valores[i+1] / valores[i]
+    resultado = valores[-1] * produto
+    return f"x = {resultado:.2f}"
 
-def diferenca_b_a(a, b):
-    return b - a  # Diferença B - A
+def proporcao(a, b, c):
+    if b == 0:
+        raise ValueError("O valor b não pode ser zero")
+    d = (b * c) / a
+    return f"d = {d:.2f}"
 
-# Função para desenhar o Diagrama de Venn no Tkinter Canvas
-def desenhar_venn(conjunto1, conjunto2):
-    venn_janela = tk.Toplevel(root)
-    venn_janela.title("Diagrama de Venn")
-    venn_janela.geometry("400x400")
-    venn_janela.configure(bg="#002147")
+import tkinter as tk
+from tkinter import messagebox
+import math
+from functools import partial
+import sympy as sp
+import matplotlib.pyplot as plt
+from matplotlib_venn import venn2, venn2_circles
 
-    canvas = tk.Canvas(venn_janela, width=400, height=400, bg="white")
-    canvas.pack()
+def resolver_expressao(algebraica):
+    try:
+        # Verifica se a entrada contém um sinal de igualdade
+        if "=" in algebraica:
+            lhs, rhs = algebraica.split("=")
+            equacao = sp.Eq(sp.sympify(lhs.strip()), sp.sympify(rhs.strip()))
+            resultado = sp.solve(equacao)
+        else:
+            expressao = sp.sympify(algebraica)
+            resultado = sp.simplify(expressao)
+        return f"Resultado: {resultado}"
+    except Exception as e:
+        return f"Erro: {str(e)}"
 
-    # Desenhar os conjuntos como círculos
-    canvas.create_oval(50, 100, 250, 300, outline="blue", width=2)  # Conjunto A
-    canvas.create_oval(150, 100, 350, 300, outline="red", width=2)  # Conjunto B
 
-    intersecao_valores = conjunto1 & conjunto2
-    uniao_valores = conjunto1 | conjunto2
-    diferenca_valores = conjunto1 - conjunto2
+def conjunto_numeros():
+    def calcular_conjunto():
+        try:
+            conjunto1 = entry_conjunto1.get()
+            conjunto2 = entry_conjunto2.get()
+            operacao = operacao_var.get()
 
-    # Exibir interseção
-    canvas.create_text(200, 200, text=f"{intersecao_valores}", fill="black", font=("Arial", 12, "bold"))
+            if not conjunto1 or not conjunto2:
+                raise ValueError("Os conjuntos não podem estar vazios")
 
-    # Exibir elementos do conjunto A (exclusivos)
-    canvas.create_text(120, 200, text=f"{diferenca_valores}", fill="blue", font=("Arial", 12, "bold"))
+            set1 = set(map(int, conjunto1.split(',')))
+            set2 = set(map(int, conjunto2.split(',')))
 
-    # Exibir elementos do conjunto B (exclusivos)
-    canvas.create_text(280, 200, text=f"{conjunto2 - conjunto1}", fill="red", font=("Arial", 12, "bold"))
+            resultado = ""
+            if operacao == "União":
+                resultado = set1.union(set2)
+            elif operacao == "Interseção":
+                resultado = set1.intersection(set2)
+            elif operacao == "Diferença":
+                resultado = set1.difference(set2)
+            elif operacao == "Diferença Simétrica":
+                resultado = set1.symmetric_difference(set2)
 
-    # Exibir União no topo
-    canvas.create_text(200, 50, text=f"União: {uniao_valores}", fill="black", font=("Arial", 12, "bold"))
+            resultado_label.config(text=f"Resultado: {resultado}", fg="white")
+        except ValueError as ve:
+            messagebox.showerror("Erro", str(ve))
+        except Exception as e:
+            messagebox.showerror("Erro", str(e))
 
-# Criar botões estilizados
-botoes = {}
-funcoes = {
-    "⚡ União de Conjuntos": (uniao, True, True),
-    "⚡ Interseção de Conjuntos": (intersecao, True, True),
-    "⚡ Diferença A - B": (diferenca_a_b, True, False),
-    "⚡ Diferença B - A": (diferenca_b_a, True, False)
-}
+    janela = tk.Toplevel(root)
+    janela.title("Conjunto de Números")
+    janela.configure(bg="#002147")
+    janela.geometry("400x500")
 
-y_pos = 100
-for nome, (funcao, is_conjunto, exibir_venn) in funcoes.items():
-    botoes[nome] = tk.Button(root, text=nome, font=("Arial", 14, "bold"), bg="#FFD700", fg="black",
-                             command=partial(abrir_janela, nome, funcao, is_conjunto, exibir_venn), relief="raised", borderwidth=4)
+    tk.Label(janela, text="Operações com Conjuntos de Números", font=("Arial", 16, "bold"), bg="#002147", fg="yellow").pack(pady=10)
 
-    def on_hover(e, btn=botoes[nome]): 
-        btn.config(bg="#FFCC00")
-    def on_leave(e, btn=botoes[nome]): 
-        btn.config(bg="#FFD700")
+    operacao_var = tk.StringVar()
+    operacao_var.set("União")
 
-    botoes[nome].place(x=170, y=y_pos, width=260, height=50)
-    botoes[nome].bind("<Enter>", on_hover)
-    botoes[nome].bind("<Leave>", on_leave)
+    operacoes = ["União", "Interseção", "Diferença", "Diferença Simétrica"]
+    for operacao in operacoes:
+        tk.Radiobutton(janela, text=operacao, variable=operacao_var, value=operacao, font=("Arial", 14), bg="#002147", fg="white").pack(pady=5)
 
-    y_pos += 70
+    tk.Label(janela, text="Conjunto 1 (ex: 1,2,3)", bg="#002147", fg="white").pack(pady=5)
+    entry_conjunto1 = tk.Entry(janela, font=("Arial", 14), bg="white", fg="black", justify="center")
+    entry_conjunto1.pack(pady=5)
 
-# Rodar a interface gráfica
-root.mainloop()
+    tk.Label(janela, text="Conjunto 2 (ex: 3,4,5)", bg="#002147", fg="white").pack(pady=5)
+    entry_conjunto2 = tk.Entry(janela, font=("Arial", 14), bg="white", fg="black", justify="center")
+    entry_conjunto2.pack(pady=5)
+
+    resultado_label = tk.Label(janela, text="", font=("Arial", 14, "bold"), bg="#002147", fg="white")
+    resultado_label.pack(pady=10)
+
+    botao_calcular = tk.Button(janela, text="Calcular", font=("Arial", 14, "bold"), bg="#FFD700", fg="black", command=calcular_conjunto, relief="raised", borderwidth=3)
+    botao_calcular.pack(pady=10)
+
+    fechar_botao = tk.Button(janela, text="Fechar", font=("Arial", 14, "bold"), bg="#FFD700", fg="black", command=janela.destroy)
+    fechar_botao.pack(pady=10)
+
+def main():
+    global root
+    root = tk.Tk()
+    root.title("PIM: Calculadora")
+    root.geometry("1000x905")
+    root.resizable(False, False)
+    root.configure(bg="#001F3F")
+
+    # Configurar grid para que os botões se expandam
+    root.grid_columnconfigure(0, weight=1)
+    root.grid_columnconfigure(1, weight=1)
+
+    # Criar título
+    titulo_label = tk.Label(root, text="⚡ PIM: Calculadora ⚡", font=("Arial", 24, "bold"), fg="yellow", bg="#001F3F")
+    titulo_label.grid(row=0, column=0, columnspan=2, pady=20)
+
+    # Adicionar espaço após o título
+    espaco_label = tk.Label(root, bg="#001F3F", height=2)
+    espaco_label.grid(row=1, column=0, columnspan=2)
+
+    # Criar botões estilizados
+    funcoes = {
+        "➕ Somar": somar,
+        "➖ Subtrair": subtrair,
+        "✖ Multiplicar": multiplicar,
+        "➗ Dividir": dividir,
+        "⚡ Potência": potencia,
+        "📏 Raiz Quadrada": raiz_quadrada,
+        "📐 Bhaskara": bhaskara,
+        "📊 Sistema Linear": sistema_linear,
+        "📏 Regra de 3 Simples": regra_de_tres,
+        "📏 Regra de 3 Composta": regra_de_tres_composta,
+        "📚 Conjunto de Números": conjunto_numeros,
+        "🔢 Expressões Algébricas": resolver_expressao,
+        "⚖️ Proporção": proporcao
+    }
+
+    # Organize the buttons in two columns
+    row = 2
+    col = 0
+
+    for nome, funcao in funcoes.items():
+        botao = tk.Button(root, text=nome, font=("Arial", 14, "bold"), bg="#FFD700", fg="black", 
+                          command=partial(abrir_janela, nome, funcao))
+        botao.grid(row=row, column=col, pady=10, padx=10, sticky="nsew")
+        col += 1
+        if col > 1:  # move para a próxima linha após a segunda coluna
+            col = 0
+            row += 1
+
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
